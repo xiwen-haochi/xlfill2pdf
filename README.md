@@ -74,7 +74,7 @@ with open("output.pdf", "wb") as f:
 可以注册自定义处理器来处理特殊的占位符：
 
 ```python
-def handle_image(cell, field_name, field_value, data_dict):
+def handle_image(cell, field_name, data_dict):
     img = openpyxl.drawing.image.Image("image.png")
     img.width = 100
     img.height = 100
@@ -99,6 +99,11 @@ processor = ExcelProcessor(
     watermark_color=(216, 0, 54)   # RGB颜色
 )
 ```
+
+## example
+![alt text](docs/before.png)
+![alt text](docs/after.png)
+
 
 ## API 参考
 

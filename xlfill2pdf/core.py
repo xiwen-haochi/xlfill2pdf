@@ -3,6 +3,7 @@ import io
 from pathlib import Path
 import tempfile
 from urllib.request import urlopen
+from typing import List, Optional, Union
 
 import qrcode
 import openpyxl
@@ -47,13 +48,26 @@ class FontManager:
 
 
 class ExcelProcessor:
+    # 图片处理相关常量
+    MAX_TOTAL_WIDTH = 350  # 最大总宽度
+    TARGET_WIDTH = 80  # 每张图片的目标宽度
+    SPACING = 5  # 图片之间的水平间距
+    VERTICAL_SPACING = 5  # 行间距
+    MAX_IMAGES_PER_ROW = 3  # 每行最大图片数量
+
+    # PDF图片尺寸限制
+    PDF_MAX_IMG_WIDTH = 100  # PDF中图片的最大宽度
+    PDF_MAX_IMG_HEIGHT = 150  # PDF中图片的最大高度
+
     def __init__(
         self,
         font_manager: FontManager,
         prefix: str = "{{",
         suffix: str = "}}",
         qrcode_suffix: str = ".二维码",
-        use_default_handlers: bool = True,
+        img_suffix: str = ".png",
+        use_default_img_handlers: bool = True,
+        use_default_qrcode_handlers: bool = True,
         watermark_text: str = None,  # 水印文字
         watermark_alpha: float = 0.1,  # 水印透明度
         watermark_angle: float = -45,  # 水印角度
@@ -63,7 +77,8 @@ class ExcelProcessor:
         Args:
             prefix: 占位符前缀，默认为"{{"
             suffix: 占位符后缀，默认为"}}"
-            qrcode_suffix: 二维码后缀，默认为".二维码"
+            qrcode_suffix: 二维码后缀，默认为".二维码",多个","分割
+            img_suffix: 图片后缀，默认为".png",多个","分割
             use_default_handlers: 是否使用默认处理器，默认为True
             watermark_text: 水印文字，默认为None
             watermark_alpha: 水印透明度，默认0.1
@@ -74,16 +89,20 @@ class ExcelProcessor:
         self.font_manager = font_manager
         self.prefix = prefix
         self.suffix = suffix
+        self.img_suffix = img_suffix
         self.qrcode_suffix = qrcode_suffix
         self.handlers = {}
+        self.suffix_list = []
         # 水印相关属性
         self.watermark_text = watermark_text
         self.watermark_alpha = watermark_alpha
         self.watermark_angle = watermark_angle
         self.watermark_color = watermark_color
 
-        if use_default_handlers:
-            self._register_default_handlers()
+        if use_default_qrcode_handlers:
+            self.register_handler(self.qrcode_suffix, self._handle_qrcode)
+        if use_default_img_handlers:
+            self.register_handler(self.img_suffix, self._handle_image)
         self.__register_font()
 
     def process_excel_to_pdf(self, excel_path: str, data_dict: dict):
@@ -106,25 +125,21 @@ class ExcelProcessor:
         except Exception as e:
             raise Exception(f"字体注册失败: {e}")
 
-    def _register_default_handlers(self):
-        """注册默认的处理器"""
-        # 注册二维码处理器
-        self.register_handler(f"{self.qrcode_suffix}", self._handle_qrcode)
-
-    def register_handler(self, suffix: str, handler_func):
+    def register_handler(self, suffix: Union[str, List], handler_func):
         """注册自定义处理器
         Args:
             suffix: 处理器对应的后缀，如 ".二维码", ".图片" 等
             handler_func: 处理函数，接收 (cell, field_name, field_value, data_dict) 参数
         """
+        self.suffix_list.append(suffix)
         self.handlers[suffix] = handler_func
 
-    def _handle_qrcode(self, cell, field_name, field_value, data_dict):
+    def _handle_qrcode(self, cell, field_name, data_dict):
         """处理二维码的默认处理器"""
         qr_cord_img_path = self.generate_qr_code(data_dict.get(field_name))
         img = openpyxl.drawing.image.Image(qr_cord_img_path)
-        img.width = 100
-        img.height = 100
+        img.width = 200
+        img.height = 200
         cell.value = None
         cell.alignment = openpyxl.styles.Alignment(
             horizontal="center", vertical="center"
@@ -135,6 +150,125 @@ class ExcelProcessor:
 
         img.anchor = anchor
         return img, column_letter, cell.row
+
+    def _load_image_from_path_or_url(self, path: str):
+        """从路径或URL加载图片"""
+        try:
+            if path.startswith("http"):
+                # 处理 URL
+                img_data = urlopen(path).read()
+                return PILImage.open(io.BytesIO(img_data))
+            else:
+                # 处理本地文件路径
+                return PILImage.open(path.strip())
+        except Exception as e:
+            print(f"Warning: Failed to load image {path}: {str(e)}")
+            return None
+
+    def _calc_row_width(self, num_images):
+        return num_images * self.TARGET_WIDTH + (num_images - 1) * self.SPACING
+
+    def _handle_image(self, cell, field_name, data_dict):
+        """处理图片，支持多图片拼接
+        图片路径可以用分号分隔，例如: "path1.png;path2.png;path3.png"
+        """
+        image_paths = data_dict.get(field_name)
+        if not image_paths:
+            image_paths = []
+        elif isinstance(image_paths, str):
+            image_paths = [image_paths]
+
+        # 调整所有图片大小并保持宽高比
+        resized_images = []
+        for path in image_paths:
+            try:
+                img = self._load_image_from_path_or_url(path.strip())
+                if img:
+                    aspect_ratio = img.height / img.width
+                    target_height = int(self.TARGET_WIDTH * aspect_ratio)
+                    resized_img = img.resize(
+                        (self.TARGET_WIDTH, target_height), PILImage.Resampling.LANCZOS
+                    )
+                    resized_images.append(resized_img)
+            except Exception as e:
+                print(f"Warning: Failed to process image {path}: {str(e)}")
+                continue
+
+        if not resized_images:
+            return None
+
+        # 将图片分组到行
+        rows = []
+        current_row = []
+        current_width = 0
+
+        for img in resized_images:
+            new_width = (
+                current_width
+                + self.TARGET_WIDTH
+                + (len(current_row) > 0) * self.SPACING
+            )
+
+            if (
+                new_width > self.MAX_TOTAL_WIDTH
+                or len(current_row) >= self.MAX_IMAGES_PER_ROW
+            ):
+                rows.append(current_row)
+                current_row = [img]
+                current_width = self.TARGET_WIDTH
+            else:
+                current_row.append(img)
+                current_width = new_width
+
+        # 添加最后一行
+        if current_row:
+            rows.append(current_row)
+
+        # 计算每行的高度和总高度
+        row_heights = []
+        for row in rows:
+            max_height = max(img.height for img in row)
+            row_heights.append(max_height)
+
+        total_height = sum(row_heights) + (len(rows) - 1) * self.VERTICAL_SPACING
+        total_width = max(self._calc_row_width(len(row)) for row in rows)
+
+        # 创建新的画布
+        combined_image = PILImage.new("RGB", (total_width, total_height), "white")
+
+        # 在画布上粘贴所有图片
+        y_offset = 0
+        for row, row_height in zip(rows, row_heights):
+            x_offset = 0
+
+            for img in row:
+                # 在当前行内垂直居中
+                y_pos = y_offset + (row_height - img.height) // 2
+                combined_image.paste(img, (x_offset, y_pos))
+                x_offset += self.TARGET_WIDTH + self.SPACING
+
+            y_offset += row_height + self.VERTICAL_SPACING
+
+        # 保存合并后的图片
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            combined_image.save(tmp.name)
+            self.temp_files.append(tmp.name)
+
+            # 创建 openpyxl 图片对象
+            excel_img = openpyxl.drawing.image.Image(tmp.name)
+
+            # 设置合适的显示大小
+            excel_img.width = total_width
+            excel_img.height = total_height
+
+            cell.value = None
+            column_letter = openpyxl.utils.get_column_letter(cell.column)
+            excel_img.anchor = f"{column_letter}{cell.row}"
+
+            # 设置单元格高度
+            cell.parent.row_dimensions[cell.row].height = total_height * 0.9
+
+            return excel_img, column_letter, cell.row
 
     def generate_qr_code(self, data):
         qr = qrcode.QRCode(
@@ -165,33 +299,40 @@ class ExcelProcessor:
 
         for row in sheet.iter_rows():
             for cell in row:
-                if cell.value and isinstance(cell.value, str):
-                    # 检查是否匹配任何已注册的处理器
-                    for suffix, handler in self.handlers.items():
-                        if cell.value.startswith(self.prefix) and cell.value.endswith(
-                            f"{suffix}{self.suffix}"
-                        ):
-                            field_value = cell.value[
-                                len(self.prefix) : -len(f"{suffix}{self.suffix}")
-                            ]
-                            field_name = field_value.split(".", 1)[0]
-
-                            # 调用对应的处理器
-                            result = handler(cell, field_name, field_value, data_dict)
-                            if result:
-                                img, column_letter, row_num = result
-                                sheet.add_image(img)
-                                sheet.column_dimensions[column_letter].width = (
-                                    img.width / 7
-                                )
-                                sheet.row_dimensions[row_num].height = img.height * 0.75
-                            break
+                if (
+                    cell.value
+                    and isinstance(cell.value, str)
+                    and cell.value.startswith(self.prefix)
+                    and cell.value.endswith(self.suffix)
+                ):
+                    placeholder = cell.value[len(self.prefix) : -len(self.suffix)]
+                    if placeholder in data_dict:
+                        cell.value = data_dict[placeholder]
                     else:
-                        # 如果没有匹配的处理器，执行普通的占位符替换
-                        for key, value in data_dict.items():
-                            placeholder = self.prefix + key + self.suffix
-                            if placeholder == cell.value:
-                                cell.value = cell.value.replace(placeholder, str(value))
+                        for handle_suffix in self.suffix_list:
+                            flag = False
+                            for current_suffix in handle_suffix.split(","):
+                                if placeholder.endswith(current_suffix):
+                                    field_name = placeholder[: -len(current_suffix)]
+                                    handler_func_obj = self.handlers.get(handle_suffix)
+                                    # 调用对应的处理器
+                                    result = handler_func_obj(
+                                        cell, field_name, data_dict
+                                    )
+                                    if result:
+                                        img, column_letter, row_num = result
+                                        sheet.add_image(img)
+                                        sheet.column_dimensions[column_letter].width = (
+                                            img.width / 9
+                                        )
+                                        sheet.row_dimensions[row_num].height = (
+                                            img.height * 0.9
+                                        )
+                                    flag = True
+                                    break
+                            if flag:
+                                break
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             wb.save(tmp.name)
             self.temp_files.append(tmp.name)
@@ -290,14 +431,24 @@ class ExcelProcessor:
                         img_width, img_height = pil_img.size
                         aspect = img_height / float(img_width)
 
-                        max_width = 100
-                        img_width = min(img_width, max_width)
+                        # 计算缩放后的尺寸
+                        img_width = min(img_width, self.PDF_MAX_IMG_WIDTH)
                         img_height = img_width * aspect
+
+                        # 如果高度超过限制，从高度反向计算宽度
+                        if img_height > self.PDF_MAX_IMG_HEIGHT:
+                            img_height = self.PDF_MAX_IMG_HEIGHT
+                            img_width = img_height / aspect
 
                         with tempfile.NamedTemporaryFile(
                             delete=False, suffix=".png"
                         ) as temp_img_file:
                             self.temp_files.append(temp_img_file.name)
+                            # 保存调整后的图片
+                            pil_img = pil_img.resize(
+                                (int(img_width), int(img_height)),
+                                PILImage.Resampling.LANCZOS,
+                            )
                             pil_img.save(temp_img_file.name)
                             value = Image(
                                 temp_img_file.name, width=img_width, height=img_height

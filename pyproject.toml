@@ -5,7 +5,7 @@ description = "Excel to PDF converter with font support"
 authors = ["'fkl' <18654198191@163.com>"]
 readme = "README.md"
 packages = [{include = "xlfill2pdf"}]
-include = ["xlfill2pdf/fonts/*.ttf"]
+include = ["xlfill2pdf/fonts/*.ttf", "docs/*.png"]
 license = "MIT"
 keywords = ["excel", "pdf", "converter"]
 classifiers = [
@@ -36,3 +36,6 @@ python_files = ["test_*.py"]
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[project.urls]
+repository = "https://github.com/xiwen-haochi/xlfill2pdf"

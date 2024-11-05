@@ -1,12 +1,10 @@
 __pycache__
 *.pyc
-*.xlsx
 *.pdf
-*.png
 *.jpg
 *.jpeg
 *.gif
 *.bmp
-tests/resources/*
 dist/*
 build/*
+tests/resources/*png
