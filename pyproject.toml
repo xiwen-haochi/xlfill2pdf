@@ -18,6 +18,8 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
 ]
+homepage = "https://github.com/xiwen-haochi/xlfill2pdf"
+repository = "https://github.com/xiwen-haochi/xlfill2pdf"
 
 [tool.poetry.dependencies]
 python = "^3.6"
@@ -36,6 +38,3 @@ python_files = ["test_*.py"]
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[project.urls]
-repository = "https://github.com/xiwen-haochi/xlfill2pdf"
