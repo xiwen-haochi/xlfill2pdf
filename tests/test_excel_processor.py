@@ -1,7 +1,6 @@
 import pytest
 from pathlib import Path
-from xlfill2pdf import ExcelProcessor
-from xlfill2pdf import FontManager
+from xlfill2pdf import ExcelProcessor, FontManager
 import openpyxl
 
 
@@ -9,8 +8,6 @@ import openpyxl
 def font_manager():
     font = FontManager()
     font.set_font(font_path=str(Path(__file__).parent / "resources" / "STKAITI.TTF"))
-    print(f"Current font path: {font.font_path}")
-    print(f"Current font name: {font.font_name}")
     return font
 
 
@@ -19,10 +16,10 @@ def processor(font_manager):
     return ExcelProcessor(
         font_manager=font_manager,
         qrcode_suffix=".二维码",
-        watermark_text="机密",
+        watermark_text="测试水印",
         watermark_alpha=0.1,
         watermark_angle=-45,
-        img_suffix=".png,.jpg,.jpeg",
+        img_suffix=".png,.图片,.jpeg",
     )
 
 
@@ -50,8 +47,14 @@ def test_excel_path():
 
 def test_process_excel_to_pdf(processor, test_excel_path, handle_image):
     test_data = {
-        "name": "http://172.16.70.124:9000/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
-        "id": "12345;ddd;adww",
+        "name": "卡卡西",
+        "img": r"D:\1fkl\all_test\for_work\xlfill2pdf\tests\resources\img.png",
+        "url": "https://www.baidu.com",
+        "age": 99,
+        "img2": [
+            "http://xxx/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
+            "http://xxx/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
+        ],
     }
     # processor.register_handler(".png", handle_image)
     # 处理PDF
