@@ -40,6 +40,15 @@ def handle_image():
     return _handle_image
 
 
+def handle_age(cell, field_name, data_dict):
+    # 处理图片的逻辑
+    age = data_dict.get(field_name)
+    if age > 100:
+        return "老年"
+    else:
+        return "青年"
+
+
 @pytest.fixture
 def test_excel_path():
     return str(Path(__file__).parent / "resources" / "test.xlsx")
@@ -51,12 +60,13 @@ def test_process_excel_to_pdf(processor, test_excel_path, handle_image):
         "img": r"D:\1fkl\all_test\for_work\xlfill2pdf\tests\resources\img.png",
         "url": "https://www.baidu.com",
         "age": 99,
-        "img2": [
-            "http://xxx/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
-            "http://xxx/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
-        ],
+        # "img2": [
+        #     "http://xxx/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
+        #     "http://xxx/big-wo-server/template-file/2024/11/e0dd1981-7157-46ca-a50b-bcb4259ae22c-0.png",
+        # ],
     }
     # processor.register_handler(".png", handle_image)
+    processor.register_handler(".转换", handler_func=handle_age)
     # 处理PDF
     pdf_data = processor.process_excel_to_pdf(test_excel_path, test_data)
     assert isinstance(pdf_data, bytes)

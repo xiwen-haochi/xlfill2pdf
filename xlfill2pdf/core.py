@@ -125,7 +125,7 @@ class ExcelProcessor:
         except Exception as e:
             raise Exception(f"字体注册失败: {e}")
 
-    def register_handler(self, suffix: Union[str, List], handler_func):
+    def register_handler(self, suffix: str, handler_func):
         """注册自定义处理器
         Args:
             suffix: 处理器对应的后缀，如 ".二维码", ".图片" 等
@@ -320,14 +320,20 @@ class ExcelProcessor:
                                         cell, field_name, data_dict
                                     )
                                     if result:
-                                        img, column_letter, row_num = result
-                                        sheet.add_image(img)
-                                        sheet.column_dimensions[column_letter].width = (
-                                            img.width / 9
-                                        )
-                                        sheet.row_dimensions[row_num].height = (
-                                            img.height * 0.9
-                                        )
+                                        if (
+                                            isinstance(result, tuple)
+                                            and len(result) == 3
+                                        ):  # Image handler result
+                                            img, column_letter, row_num = result
+                                            sheet.add_image(img)
+                                            sheet.column_dimensions[
+                                                column_letter
+                                            ].width = (img.width / 9)
+                                            sheet.row_dimensions[row_num].height = (
+                                                img.height * 0.9
+                                            )
+                                        else:  # Other types of results (string, link, etc.)
+                                            cell.value = str(result)
                                     flag = True
                                     break
                             if flag:
