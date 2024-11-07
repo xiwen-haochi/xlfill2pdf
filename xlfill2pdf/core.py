@@ -138,8 +138,8 @@ class ExcelProcessor:
         """处理二维码的默认处理器"""
         qr_cord_img_path = self.generate_qr_code(data_dict.get(field_name))
         img = openpyxl.drawing.image.Image(qr_cord_img_path)
-        img.width = 200
-        img.height = 200
+        img.width = 50
+        img.height = 50
         cell.value = None
         cell.alignment = openpyxl.styles.Alignment(
             horizontal="center", vertical="center"
@@ -460,7 +460,7 @@ class ExcelProcessor:
                                 temp_img_file.name, width=img_width, height=img_height
                             )
                     except Exception as e:
-                        value = "图片写入失败"
+                        value = "写入失败"
 
                 row_data.append(value)
             if any(cell != "" for cell in row_data):
@@ -483,19 +483,37 @@ class ExcelProcessor:
             for row in data
         ]
 
-        table = Table(data)
+        # 创建一个字典来存储每行的最大高度
+        row_heights = {}
+
+        # 首先获取Excel中设置的原始行高
+        for i in range(1, len(data) + 1):
+            if i in sheet.row_dimensions:
+                row_heights[i] = sheet.row_dimensions[i].height
+
+        # 检查每个单元格是否包含图片，并更新行高
+        for row_index, row in enumerate(data, start=1):
+            for col_index, cell in enumerate(row):
+                if isinstance(cell, Image):
+                    # 如果单元格包含图片，检查并更新该行的高度
+                    image_height = cell.drawHeight
+                    current_height = row_heights.get(row_index, 0)
+                    # 将图片高度转换为与Excel兼容的单位
+                    excel_image_height = image_height * 1.2  # 添加一些额外空间
+                    if excel_image_height > current_height:
+                        row_heights[row_index] = excel_image_height
+
+        # 使用更新后的行高创建Table
+        table = Table(
+            data, rowHeights=[row_heights.get(i, None) for i in range(1, len(data) + 1)]
+        )
         table_style = TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                (
-                    "FONTNAME",
-                    (0, 0),
-                    (-1, -1),
-                    self.font_manager.font_name,
-                ),  # 使用字体管理器的字体
+                ("FONTNAME", (0, 0), (-1, -1), self.font_manager.font_name),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
                 ("TOPPADDING", (0, 0), (-1, -1), 2),

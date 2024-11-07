@@ -56,7 +56,7 @@ def test_excel_path():
 
 def test_process_excel_to_pdf(processor, test_excel_path, handle_image):
     test_data = {
-        "name": "卡卡西",
+        "name": "卡卡西copy卡卡西copy卡卡西copy卡卡西copy卡卡西copy卡卡西copy卡卡西copy\n卡卡西copy卡卡西copy卡卡西copy卡卡西copy卡卡西copy",
         "img": r"D:\1fkl\all_test\for_work\xlfill2pdf\tests\resources\img.png",
         "url": "https://www.baidu.com",
         "age": 99,
