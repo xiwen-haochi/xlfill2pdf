@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xlfill2pdf"
-version = "0.1.5"
+version = "0.1.6"
 description = "Excel to PDF converter with font support"
 authors = ["'fkl' <18654198191@163.com>"]
 readme = "README.md"

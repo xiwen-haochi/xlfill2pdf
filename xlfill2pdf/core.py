@@ -2,7 +2,7 @@ import os
 import io
 from pathlib import Path
 import tempfile
-from urllib.request import urlopen
+from urllib.request import urlopen, quote
 from typing import List, Optional, Union
 
 import qrcode
@@ -289,7 +289,8 @@ class ExcelProcessor:
     def __replace_placeholders(self, excel_path: str, data_dict: dict):
         if excel_path.startswith("http"):
             try:
-                bytes_data = urlopen(excel_path).read()
+                encoded_url = quote(excel_path, safe=":/?=&")
+                bytes_data = urlopen(encoded_url).read()
             except Exception as e:
                 raise Exception(f"下载失败: {e}")
             wb = openpyxl.load_workbook(io.BytesIO(bytes_data))
