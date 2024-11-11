@@ -133,7 +133,7 @@ class ExcelProcessor:
             font_path = self.font_manager.font_path
             pdfmetrics.registerFont(TTFont(self.font_manager.font_name, str(font_path)))
         except Exception as e:
-            raise Exception(f"字体注册失败 (Font registration failed): {e}")
+            raise Exception(f"Font registration failed: {e}")
 
     def register_handler(self, suffix: str, handler_func):
         """注册自定义处理器
@@ -184,9 +184,7 @@ class ExcelProcessor:
                 # 处理本地文件路径 / Handle local file path
                 return PILImage.open(path.strip())
         except Exception as e:
-            print(
-                f"警告：加载图片失败 (Warning: Failed to load image) {path}: {str(e)}"
-            )
+            print(f"Warning: Failed to load image {path}: {str(e)}")
             return None
 
     def _calc_row_width(self, image_count: int) -> int:
@@ -349,7 +347,7 @@ class ExcelProcessor:
                 encoded_url = quote(excel_path, safe=":/?=&")
                 bytes_data = urlopen(encoded_url).read()
             except Exception as e:
-                raise Exception(f"下载失败: {e}")
+                raise Exception(f"Download failed: {e}")
             wb = openpyxl.load_workbook(io.BytesIO(bytes_data))
         else:
             wb = openpyxl.load_workbook(excel_path)
@@ -524,7 +522,7 @@ class ExcelProcessor:
                                 temp_img_file.name, width=img_width, height=img_height
                             )
                     except Exception as e:
-                        value = "写入失败"
+                        value = "write failed"
 
                 row_data.append(value)
             if any(cell != "" for cell in row_data):
