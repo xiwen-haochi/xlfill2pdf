@@ -20,16 +20,22 @@ from reportlab.pdfgen import canvas
 
 
 class FontManager:
+    """字体管理器
+    Font manager for handling custom and default fonts
+    """
+
     def __init__(self):
         self._default_font_path = str(Path(__file__).parent / "fonts" / "default.ttf")
         self._custom_font_path = None
-        self._font_name = "CustomFont"  # 默认字体名称
+        self._font_name = "DefaultFont"
 
     def set_font(self, font_path: str = None, font_name: str = None):
         """设置并注册自定义字体
+        Set and register custom font
+
         Args:
-            font_path: 字体文件路径
-            font_name: 字体注册名称，默认为 "CustomFont"
+            font_path: 字体文件路径 / Font file path
+            font_name: 字体注册名称，默认为 "DefaultFont" / Font registration name, defaults to "DefaultFont"
         """
         if font_path and Path(font_path).exists():
             self._custom_font_path = font_path
@@ -38,7 +44,9 @@ class FontManager:
 
     @property
     def font_path(self):
-        """获取当前使用的字体路径"""
+        """获取当前使用的字体路径
+        Get the current font path in use
+        """
         return self._custom_font_path or self._default_font_path
 
     @property
@@ -48,52 +56,43 @@ class FontManager:
 
 
 class ExcelProcessor:
-    # 图片处理相关常量
-    MAX_TOTAL_WIDTH = 350  # 最大总宽度
-    TARGET_WIDTH = 80  # 每张图片的目标宽度
-    SPACING = 5  # 图片之间的水平间距
-    VERTICAL_SPACING = 5  # 行间距
-    MAX_IMAGES_PER_ROW = 3  # 每行最大图片数量
+    """Excel处理器，用于将Excel文件转换为PDF
+    Excel processor for converting Excel files to PDF
+    """
 
-    # PDF图片尺寸限制
-    PDF_MAX_IMG_WIDTH = 100  # PDF中图片的最大宽度
-    PDF_MAX_IMG_HEIGHT = 150  # PDF中图片的最大高度
+    # 图片相关常量 / Image related constants
+    IMAGE_MAX_TOTAL_WIDTH = 350  # 最大总宽度 / Maximum total width
+    IMAGE_TARGET_WIDTH = 80  # 目标宽度 / Target width
+    IMAGE_HORIZONTAL_SPACING = 5  # 水平间距 / Horizontal spacing
+    IMAGE_VERTICAL_SPACING = 5  # 垂直间距 / Vertical spacing
+    IMAGE_MAX_PER_ROW = 3  # 每行最大图片数 / Maximum images per row
+
+    # PDF相关常量 / PDF related constants
+    PDF_MAX_IMAGE_WIDTH = 100  # PDF中图片最大宽度 / Maximum image width in PDF
+    PDF_MAX_IMAGE_HEIGHT = 150  # PDF中图片最大高度 / Maximum image height in PDF
 
     def __init__(
         self,
         font_manager: FontManager,
         prefix: str = "{{",
         suffix: str = "}}",
-        qrcode_suffix: str = ".二维码",
-        img_suffix: str = ".png",
-        use_default_img_handlers: bool = True,
+        qrcode_suffix: str = ".qrcode",
+        image_suffix: str = ".png",
+        use_default_image_handlers: bool = True,
         use_default_qrcode_handlers: bool = True,
-        watermark_text: str = None,  # 水印文字
-        watermark_alpha: float = 0.1,  # 水印透明度
-        watermark_angle: float = -45,  # 水印角度
-        watermark_color: tuple = (0, 0, 0),  # 水印颜色 (R,G,B)
+        watermark_text: Optional[str] = None,
+        watermark_alpha: float = 0.1,
+        watermark_angle: float = -45,
+        watermark_color: tuple[int, int, int] = (0, 0, 0),
     ):
-        """替换Excel中的占位符
-        Args:
-            prefix: 占位符前缀，默认为"{{"
-            suffix: 占位符后缀，默认为"}}"
-            qrcode_suffix: 二维码后缀，默认为".二维码",多个","分割
-            img_suffix: 图片后缀，默认为".png",多个","分割
-            use_default_handlers: 是否使用默认处理器，默认为True
-            watermark_text: 水印文字，默认为None
-            watermark_alpha: 水印透明度，默认0.1
-            watermark_angle: 水印角度，默认0度（水平）
-            watermark_color: 水印颜色，默认黑色(0,0,0)
-        """
-        self.temp_files = []
+        self.temporary_files = []
         self.font_manager = font_manager
         self.prefix = prefix
         self.suffix = suffix
-        self.img_suffix = img_suffix
+        self.image_suffix = image_suffix
         self.qrcode_suffix = qrcode_suffix
         self.handlers = {}
         self.suffix_list = []
-        # 水印相关属性
         self.watermark_text = watermark_text
         self.watermark_alpha = watermark_alpha
         self.watermark_angle = watermark_angle
@@ -101,35 +100,50 @@ class ExcelProcessor:
 
         if use_default_qrcode_handlers:
             self.register_handler(self.qrcode_suffix, self._handle_qrcode)
-        if use_default_img_handlers:
-            self.register_handler(self.img_suffix, self._handle_image)
-        self.__register_font()
+        if use_default_image_handlers:
+            self.register_handler(self.image_suffix, self._handle_image)
+        self._register_font()
 
-    def process_excel_to_pdf(self, excel_path: str, data_dict: dict):
+    def process_excel_to_pdf(self, excel_path: str, data_dict: dict) -> bytes:
+        """处理Excel文件并转换为PDF
+        Process Excel file and convert to PDF
+
+        Args:
+            excel_path: Excel文件路径 / Path to Excel file
+            data_dict: 替换数据字典 / Dictionary containing replacement values
+
+        Returns:
+            bytes: 生成的PDF内容 / Generated PDF content
+        """
         try:
-            temp_excel_path = self.__replace_placeholders(excel_path, data_dict)
-            temp_pdf_path = self.__excel_to_pdf(temp_excel_path)
+            temp_excel_path = self._replace_placeholders(excel_path, data_dict)
+            temp_pdf_path = self._excel_to_pdf(temp_excel_path)
             with open(temp_pdf_path, "rb") as pdf_file:
-                pdf_data = pdf_file.read()
-            return pdf_data
+                return pdf_file.read()
         finally:
-            for temp_file in self.temp_files:
-                if temp_file in locals():
+            for temp_file in self.temporary_files:
+                if os.path.exists(temp_file):
                     os.unlink(temp_file)
 
-    def __register_font(self):
-        """注册字体到 reportlab"""
+    def _register_font(self):
+        """注册字体到reportlab系统
+        Register font to reportlab system
+        """
         try:
             font_path = self.font_manager.font_path
             pdfmetrics.registerFont(TTFont(self.font_manager.font_name, str(font_path)))
         except Exception as e:
-            raise Exception(f"字体注册失败: {e}")
+            raise Exception(f"字体注册失败 (Font registration failed): {e}")
 
     def register_handler(self, suffix: str, handler_func):
         """注册自定义处理器
+        Register custom handler
+
         Args:
-            suffix: 处理器对应的后缀，如 ".二维码", ".图片" 等
+            suffix: 处理器对应的后缀，如 ".qrcode", ".png" 等
+                   Handler suffix, such as ".qrcode", ".png", etc.
             handler_func: 处理函数，接收 (cell, field_name, field_value, data_dict) 参数
+                        Handler function that accepts (cell, field_name, field_value, data_dict) parameters
         """
         self.suffix_list.append(suffix)
         self.handlers[suffix] = handler_func
@@ -152,25 +166,58 @@ class ExcelProcessor:
         return img, column_letter, cell.row
 
     def _load_image_from_path_or_url(self, path: str):
-        """从路径或URL加载图片"""
+        """从路径或URL加载图片
+        Load image from path or URL
+
+        Args:
+            path: 图片路径或URL / Image path or URL
+
+        Returns:
+            PIL.Image: 加载的图片对象 / Loaded image object
+        """
         try:
             if path.startswith("http"):
-                # 处理 URL
+                # 处理 URL / Handle URL
                 img_data = urlopen(path).read()
                 return PILImage.open(io.BytesIO(img_data))
             else:
-                # 处理本地文件路径
+                # 处理本地文件路径 / Handle local file path
                 return PILImage.open(path.strip())
         except Exception as e:
-            print(f"Warning: Failed to load image {path}: {str(e)}")
+            print(
+                f"警告：加载图片失败 (Warning: Failed to load image) {path}: {str(e)}"
+            )
             return None
 
-    def _calc_row_width(self, num_images):
-        return num_images * self.TARGET_WIDTH + (num_images - 1) * self.SPACING
+    def _calc_row_width(self, image_count: int) -> int:
+        """计算基于图片数量的行总宽度
+        Calculate the total width of a row based on number of images
+
+        Args:
+            image_count: 图片数量 / Number of images
+
+        Returns:
+            int: 行总宽度 / Total row width
+        """
+        return (
+            image_count * self.IMAGE_TARGET_WIDTH
+            + (image_count - 1) * self.IMAGE_HORIZONTAL_SPACING
+        )
 
     def _handle_image(self, cell, field_name, data_dict):
         """处理图片，支持多图片拼接
+        Process images, supports multiple image concatenation
+
         图片路径可以用分号分隔，例如: "path1.png;path2.png;path3.png"
+        Image paths can be separated by semicolons, e.g.: "path1.png;path2.png;path3.png"
+
+        Args:
+            cell: Excel单元格对象 / Excel cell object
+            field_name: 字段名称 / Field name
+            data_dict: 数据字典 / Data dictionary
+
+        Returns:
+            tuple: (图片对象, 列标识, 行号) / (Image object, column letter, row number)
         """
         image_paths = data_dict.get(field_name)
         if not image_paths:
@@ -185,9 +232,10 @@ class ExcelProcessor:
                 img = self._load_image_from_path_or_url(path.strip())
                 if img:
                     aspect_ratio = img.height / img.width
-                    target_height = int(self.TARGET_WIDTH * aspect_ratio)
+                    target_height = int(self.IMAGE_TARGET_WIDTH * aspect_ratio)
                     resized_img = img.resize(
-                        (self.TARGET_WIDTH, target_height), PILImage.Resampling.LANCZOS
+                        (self.IMAGE_TARGET_WIDTH, target_height),
+                        PILImage.Resampling.LANCZOS,
                     )
                     resized_images.append(resized_img)
             except Exception as e:
@@ -205,17 +253,17 @@ class ExcelProcessor:
         for img in resized_images:
             new_width = (
                 current_width
-                + self.TARGET_WIDTH
-                + (len(current_row) > 0) * self.SPACING
+                + self.IMAGE_TARGET_WIDTH
+                + (len(current_row) > 0) * self.IMAGE_HORIZONTAL_SPACING
             )
 
             if (
-                new_width > self.MAX_TOTAL_WIDTH
-                or len(current_row) >= self.MAX_IMAGES_PER_ROW
+                new_width > self.IMAGE_MAX_TOTAL_WIDTH
+                or len(current_row) >= self.IMAGE_MAX_PER_ROW
             ):
                 rows.append(current_row)
                 current_row = [img]
-                current_width = self.TARGET_WIDTH
+                current_width = self.IMAGE_TARGET_WIDTH
             else:
                 current_row.append(img)
                 current_width = new_width
@@ -230,7 +278,7 @@ class ExcelProcessor:
             max_height = max(img.height for img in row)
             row_heights.append(max_height)
 
-        total_height = sum(row_heights) + (len(rows) - 1) * self.VERTICAL_SPACING
+        total_height = sum(row_heights) + (len(rows) - 1) * self.IMAGE_VERTICAL_SPACING
         total_width = max(self._calc_row_width(len(row)) for row in rows)
 
         # 创建新的画布
@@ -245,14 +293,14 @@ class ExcelProcessor:
                 # 在当前行内垂直居中
                 y_pos = y_offset + (row_height - img.height) // 2
                 combined_image.paste(img, (x_offset, y_pos))
-                x_offset += self.TARGET_WIDTH + self.SPACING
+                x_offset += self.IMAGE_TARGET_WIDTH + self.IMAGE_HORIZONTAL_SPACING
 
-            y_offset += row_height + self.VERTICAL_SPACING
+            y_offset += row_height + self.IMAGE_VERTICAL_SPACING
 
         # 保存合并后的图片
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
             combined_image.save(tmp.name)
-            self.temp_files.append(tmp.name)
+            self.temporary_files.append(tmp.name)
 
             # 创建 openpyxl 图片对象
             excel_img = openpyxl.drawing.image.Image(tmp.name)
@@ -271,6 +319,15 @@ class ExcelProcessor:
             return excel_img, column_letter, cell.row
 
     def generate_qr_code(self, data):
+        """生成二维码图片
+        Generate QR code image
+
+        Args:
+            data: 二维码数据内容 / QR code data content
+
+        Returns:
+            str: 生成的二维码图片路径 / Generated QR code image path
+        """
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -282,11 +339,11 @@ class ExcelProcessor:
         img = qr.make_image(fill_color="black", back_color="white")
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
             img.save(tmp.name)
-            self.temp_files.append(tmp.name)
+            self.temporary_files.append(tmp.name)
             img_path = tmp.name
         return img_path
 
-    def __replace_placeholders(self, excel_path: str, data_dict: dict):
+    def _replace_placeholders(self, excel_path: str, data_dict: dict):
         if excel_path.startswith("http"):
             try:
                 encoded_url = quote(excel_path, safe=":/?=&")
@@ -333,7 +390,7 @@ class ExcelProcessor:
                                             sheet.row_dimensions[row_num].height = (
                                                 img.height * 0.9
                                             )
-                                        else:  # Other types of results (string, link, etc.)
+                                        else:
                                             cell.value = str(result)
                                     flag = True
                                     break
@@ -342,36 +399,42 @@ class ExcelProcessor:
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             wb.save(tmp.name)
-            self.temp_files.append(tmp.name)
+            self.temporary_files.append(tmp.name)
             tmp_path = tmp.name
         return tmp_path
 
     def _add_watermark(self, canvas_obj, pagesize):
-        """添加水印到PDF页面"""
+        """添加水印到PDF页面
+        Add watermark to PDF page
+
+        Args:
+            canvas_obj: PDF画布对象 / PDF canvas object
+            pagesize: 页面尺寸 / Page size
+        """
         if not self.watermark_text:
             return
 
         canvas_obj.saveState()
 
-        # 设置水印文字属性
+        # 设置水印文字属性 / Set watermark text properties
         canvas_obj.setFont(self.font_manager.font_name, 60)
         r, g, b = self.watermark_color
         canvas_obj.setFillColorRGB(r, g, b, alpha=self.watermark_alpha)
 
-        # 计算水印位置和旋转
+        # 计算水印位置和旋转 / Calculate watermark position and rotation
         page_width, page_height = pagesize
 
-        # 创建水印网格
+        # 创建水印网格 / Create watermark grid
         text_width = canvas_obj.stringWidth(
             self.watermark_text, self.font_manager.font_name, 60
         )
-        text_height = 60  # 假设高度为字体大小
+        text_height = 60  # 假设高度为字体大小 / Assume height equals font size
 
-        # 计算水印间距
+        # 计算水印间距 / Calculate watermark spacing
         x_spacing = text_width * 2
         y_spacing = text_height * 2
 
-        # 在页面上绘制水印网格
+        # 在页面上绘制水印网格 / Draw watermark grid on page
         for y in range(0, int(page_height * 1.5), int(y_spacing)):
             for x in range(0, int(page_width * 1.5), int(x_spacing)):
                 canvas_obj.saveState()
@@ -382,11 +445,11 @@ class ExcelProcessor:
 
         canvas_obj.restoreState()
 
-    def __excel_to_pdf(self, excel_path: str):
+    def _excel_to_pdf(self, excel_path: str):
         wb = openpyxl.load_workbook(excel_path)
         sheet = wb.active
         tmp_pdf_fd, tmp_pdf_path = tempfile.mkstemp(suffix=".pdf")
-        self.temp_files.append(tmp_pdf_path)
+        self.temporary_files.append(tmp_pdf_path)
         os.close(tmp_pdf_fd)
 
         margin = 0.3 * inch
@@ -439,18 +502,18 @@ class ExcelProcessor:
                         aspect = img_height / float(img_width)
 
                         # 计算缩放后的尺寸
-                        img_width = min(img_width, self.PDF_MAX_IMG_WIDTH)
+                        img_width = min(img_width, self.PDF_MAX_IMAGE_WIDTH)
                         img_height = img_width * aspect
 
                         # 如果高度超过限制，从高度反向计算宽度
-                        if img_height > self.PDF_MAX_IMG_HEIGHT:
-                            img_height = self.PDF_MAX_IMG_HEIGHT
+                        if img_height > self.PDF_MAX_IMAGE_HEIGHT:
+                            img_height = self.PDF_MAX_IMAGE_HEIGHT
                             img_width = img_height / aspect
 
                         with tempfile.NamedTemporaryFile(
                             delete=False, suffix=".png"
                         ) as temp_img_file:
-                            self.temp_files.append(temp_img_file.name)
+                            self.temporary_files.append(temp_img_file.name)
                             # 保存调整后的图片
                             pil_img = pil_img.resize(
                                 (int(img_width), int(img_height)),
@@ -532,11 +595,18 @@ class ExcelProcessor:
 
         # 修改 WatermarkCanvas 类的实现
         class WatermarkCanvas(canvas.Canvas):
+            """水印画布类，用于在PDF页面上添加水印
+            Watermark canvas class for adding watermarks to PDF pages
+            """
+
             def __init__(self, filename, processor=None, **kwargs):
-                super().__init__(filename, **kwargs)  # 正确传递所有参数给父类
+                super().__init__(filename, **kwargs)
                 self.processor = processor
 
             def showPage(self):
+                """显示页面并添加水印
+                Show page and add watermark
+                """
                 if self.processor and self.processor.watermark_text:
                     self.processor._add_watermark(self, landscape(letter))
                 super().showPage()

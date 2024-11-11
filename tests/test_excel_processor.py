@@ -19,7 +19,7 @@ def processor(font_manager):
         watermark_text="测试水印",
         watermark_alpha=0.1,
         watermark_angle=-45,
-        img_suffix=".png,.图片,.jpeg",
+        image_suffix=".png,.图片,.jpeg",
     )
 
 
