@@ -14,15 +14,13 @@
 
 ## 特性
 
-- 支持 Excel 到 PDF 的转换
-- 支持文本占位符替换
-- 支持二维码生成
-- 支持自定义水印
+- 支持变量替换
+- 支持多图片自动布局
+- 支持二维码生成（普通二维码和带信息二维码）
+- 支持水印添加
 - 支持自定义字体
-- 支持合并单元格
-- 支持图片处理
-- 支持远程 Excel 文件
-
+- 支持网络图片和本地图片
+- 支持网络 Excel 文件
 
 ## 安装
 
@@ -82,7 +80,8 @@ def handle_image(cell, field_name, data_dict):
     column_letter = openpyxl.utils.get_column_letter(cell.column)
     anchor = f"{column_letter}{cell.row}"
     img.anchor = anchor
-    return img, column_letter, cell.row
+    return img, column_letter, cell.row # 返回图片对象、锚点、行号
+    # return 'xxxx' 则替换为 'xxxx'
 
 # 注册处理器
 processor.register_handler(".图片", handle_image)
@@ -120,15 +119,33 @@ font_manager.set_font("/path/to/font.ttf", "FontName")
 
 Excel 处理器，负责转换和生成 PDF。
 
-主要参数：
-- `font_manager`: 字体管理器实例
-- `prefix`: 占位符前缀，默认 "{{"
-- `suffix`: 占位符后缀，默认 "}}"
-- `qrcode_suffix`: 二维码后缀，默认 ".二维码"
-- `watermark_text`: 水印文字
-- `watermark_alpha`: 水印透明度
-- `watermark_angle`: 水印角度
-- `watermark_color`: 水印颜色 (R,G,B)
+
+### ExcelProcessor 参数说明
+
+- `font_manager`: FontManager 实例，用于管理字体
+- `prefix`: 变量前缀，默认 "{{"
+- `suffix`: 变量后缀，默认 "}}"
+- `qrcode_suffix`: 二维码后缀，默认 ".qrcode"
+- `image_suffix`: 图片后缀，默认 ".png"
+- `info_qrcode_suffix`: 带信息二维码后缀，默认 ".info_qrcode" (新增)
+- `use_default_image_handlers`: 是否使用默认图片处理器，默认 True
+- `use_default_qrcode_handlers`: 是否使用默认二维码处理器，默认 True
+- `use_default_info_qrcode_handlers`: 是否使用默认带信息二维码处理器，默认 True (新增)
+- `watermark_text`: 水印文字，默认 None
+- `watermark_alpha`: 水印透明度，默认 0.1
+- `watermark_angle`: 水印角度，默认 -45
+- `watermark_color`: 水印颜色，默认 (0, 0, 0)
+- `qrcode_template`: 二维码信息模板，默认 None (新增)
+```python
+qrcode_template = {
+    "title": {
+        "text": "设备标识牌",
+        "position": (150, 40),
+        "font_size": 32, # 字体大小 选填
+        "color": "black", # 字体颜色 选填
+    }
+}
+```
 
 ## 注意事项
 

@@ -18,41 +18,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
-
-class FontManager:
-    """字体管理器
-    Font manager for handling custom and default fonts
-    """
-
-    def __init__(self):
-        self._default_font_path = str(Path(__file__).parent / "fonts" / "default.ttf")
-        self._custom_font_path = None
-        self._font_name = "DefaultFont"
-
-    def set_font(self, font_path: str = None, font_name: str = None):
-        """设置并注册自定义字体
-        Set and register custom font
-
-        Args:
-            font_path: 字体文件路径 / Font file path
-            font_name: 字体注册名称，默认为 "DefaultFont" / Font registration name, defaults to "DefaultFont"
-        """
-        if font_path and Path(font_path).exists():
-            self._custom_font_path = font_path
-            if font_name:
-                self._font_name = font_name
-
-    @property
-    def font_path(self):
-        """获取当前使用的字体路径
-        Get the current font path in use
-        """
-        return self._custom_font_path or self._default_font_path
-
-    @property
-    def font_name(self):
-        """获取当前字体注册名称"""
-        return self._font_name
+from .font import FontManager
+from .qrcode import QRCodeGenerator
 
 
 class ExcelProcessor:
@@ -78,12 +45,15 @@ class ExcelProcessor:
         suffix: str = "}}",
         qrcode_suffix: str = ".qrcode",
         image_suffix: str = ".png",
+        info_qrcode_suffix: str = ".info_qrcode",
         use_default_image_handlers: bool = True,
         use_default_qrcode_handlers: bool = True,
+        use_default_info_qrcode_handlers: bool = True,
         watermark_text: Optional[str] = None,
         watermark_alpha: float = 0.1,
         watermark_angle: float = -45,
         watermark_color: tuple[int, int, int] = (0, 0, 0),
+        qrcode_template: Optional[dict] = None,
     ):
         self.temporary_files = []
         self.font_manager = font_manager
@@ -97,11 +67,15 @@ class ExcelProcessor:
         self.watermark_alpha = watermark_alpha
         self.watermark_angle = watermark_angle
         self.watermark_color = watermark_color
+        self.qrcode_template = qrcode_template or {}
+        self.info_qrcode_suffix = info_qrcode_suffix
 
         if use_default_qrcode_handlers:
             self.register_handler(self.qrcode_suffix, self._handle_qrcode)
         if use_default_image_handlers:
             self.register_handler(self.image_suffix, self._handle_image)
+        if use_default_info_qrcode_handlers:
+            self.register_handler(self.info_qrcode_suffix, self._handle_info_qrcode)
         self._register_font()
 
     def process_excel_to_pdf(self, excel_path: str, data_dict: dict) -> bytes:
@@ -154,6 +128,32 @@ class ExcelProcessor:
         img = openpyxl.drawing.image.Image(qr_cord_img_path)
         img.width = 50
         img.height = 50
+        cell.value = None
+        cell.alignment = openpyxl.styles.Alignment(
+            horizontal="center", vertical="center"
+        )
+
+        column_letter = openpyxl.utils.get_column_letter(cell.column)
+        anchor = f"{column_letter}{cell.row}"
+
+        img.anchor = anchor
+        return img, column_letter, cell.row
+
+    def _handle_info_qrcode(self, cell, field_name, data_dict):
+        """处理带信息的二维码
+        Process QR code with additional information
+        """
+        # 创建二维码生成器实例
+        qrc = QRCodeGenerator(
+            font_manager=self.font_manager,
+            qr_size=(50, 50),
+            output_type="temp",
+        )
+        qr_path = qrc.create_info_qrcode(
+            data_dict.get(field_name), self.qrcode_template
+        )
+
+        img = openpyxl.drawing.image.Image(qr_path)
         cell.value = None
         cell.alignment = openpyxl.styles.Alignment(
             horizontal="center", vertical="center"
@@ -407,7 +407,7 @@ class ExcelProcessor:
 
         Args:
             canvas_obj: PDF画布对象 / PDF canvas object
-            pagesize: 页面尺寸 / Page size
+            pagesize: 页面尺 / Page size
         """
         if not self.watermark_text:
             return
@@ -503,7 +503,7 @@ class ExcelProcessor:
                         img_width = min(img_width, self.PDF_MAX_IMAGE_WIDTH)
                         img_height = img_width * aspect
 
-                        # 如果高度超过限制，从高度反向计算宽度
+                        # 如果高度超过限制，从度反向计算宽度
                         if img_height > self.PDF_MAX_IMAGE_HEIGHT:
                             img_height = self.PDF_MAX_IMAGE_HEIGHT
                             img_width = img_height / aspect
