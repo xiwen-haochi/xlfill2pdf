@@ -99,9 +99,84 @@ processor = ExcelProcessor(
 )
 ```
 
+## 生成增加自定义信息的二维码
+QRCodeGenerator 是一个功能强大的二维码生成器类，支持在二维码周围添加自定义文字信息。它提供了灵活的配置选项和多种输出格式。
+
+## 主要功能
+
+- 生成标准二维码
+- 支持自定义背景尺寸和颜色
+- 支持在二维码周围添加文字说明
+- 支持自定义字体和字体样式
+- 提供多种输出格式（bytes、文件路径、临时文件）
+- 支持上下文管理器（Context Manager）
+
+## 初始化参数
+
+- `font_manager`: FontManager 实例，用于管理字体
+- `background_size`: 背景图尺寸，默认 (350, 180)
+- `background_color`: 背景颜色，默认白色
+- `qr_size`: 二维码尺寸，默认 (100, 100)
+- `qr_position`: 二维码在背景中的位置，默认 (20, 40)
+- `default_font_size`: 默认字体大小，默认 12
+- `default_font_color`: 默认字体颜色，默认黑色
+- `output_type`: 输出类型，可选 "path"、"temp"、"bytes"
+- `output_path`: 输出文件路径（当 output_type 为 "path" 时必需）
+
+## 核心方法
+
+### create_info_qrcode
+
+创建带有文字信息的二维码。
+
+参数：
+- `qr_data`: 二维码数据内容
+- `text_info`: 文字信息配置字典
+
+```python
+from xlfill2pdf import QRCodeGenerator, FontManager
+初始化
+font_manager = FontManager()
+generator = QRCodeGenerator(
+font_manager=font_manager,
+background_size=(400, 200),
+qr_size=(120, 120)
+)
+创建带信息的二维码
+text_info = {
+"title": {
+"text": "产品信息",
+"position": (150, 40),
+"font_size": 32,
+"color": "black"
+},
+"code": {
+"text": "产品编号：A12345",
+"position": (150, 80),
+"font_size": 12
+}
+}
+result = generator.create_info_qrcode(
+qr_data="https://example.com",
+text_info=text_info
+)
+
+'''
+1. 使用 "path" 输出类型时必须提供 output_path
+2. 使用 "temp" 输出类型时，文件会在对象销毁时自动清理
+3. 建议使用上下文管理器来确保临时文件的正确清理
+4. 文字信息字典中的 "text" 和 "position" 是必需的键
+5. 确保使用的字体文件存在且可访问
+'''
+
+
+
+```
+
 ## example
 ![alt text](docs/before.png)
 ![alt text](docs/after.png)
+![alt text](docs/info_qrcode.png)
 
 
 ## API 参考
