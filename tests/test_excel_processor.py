@@ -25,6 +25,7 @@ def processor(font_manager):
         use_default_qrcode_handlers=False,
         use_default_info_qrcode_handlers=True,
         info_qrcode_suffix=".二维码",
+        default_value="缺少值",
         qrcode_template={
             "title": {
                 "text": "设备标识牌",

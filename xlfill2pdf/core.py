@@ -46,6 +46,7 @@ class ExcelProcessor:
         qrcode_suffix: str = ".qrcode",
         image_suffix: str = ".png",
         info_qrcode_suffix: str = ".info_qrcode",
+        default_value: Optional[str] = None,
         use_default_image_handlers: bool = True,
         use_default_qrcode_handlers: bool = True,
         use_default_info_qrcode_handlers: bool = True,
@@ -69,6 +70,7 @@ class ExcelProcessor:
         self.watermark_color = watermark_color
         self.qrcode_template = qrcode_template or {}
         self.info_qrcode_suffix = info_qrcode_suffix
+        self.default_value = default_value
 
         if use_default_qrcode_handlers:
             self.register_handler(self.qrcode_suffix, self._handle_qrcode)
@@ -365,8 +367,8 @@ class ExcelProcessor:
                     if placeholder in data_dict:
                         cell.value = data_dict[placeholder]
                     else:
+                        flag = False
                         for handle_suffix in self.suffix_list:
-                            flag = False
                             for current_suffix in handle_suffix.split(","):
                                 if placeholder.endswith(current_suffix):
                                     field_name = placeholder[: -len(current_suffix)]
@@ -394,6 +396,10 @@ class ExcelProcessor:
                                     break
                             if flag:
                                 break
+                        if flag:
+                            flag = False
+                        elif self.default_value is not None:
+                            cell.value = self.default_value
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             wb.save(tmp.name)
