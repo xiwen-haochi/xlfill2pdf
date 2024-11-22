@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xlfill2pdf"
-version = "0.2.1"
+version = "0.2.2"
 description = "Excel to PDF converter with font support"
 authors = ["'fkl' <18654198191@163.com>"]
 readme = "README.md"
@@ -12,8 +12,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -22,10 +20,11 @@ homepage = "https://github.com/xiwen-haochi/xlfill2pdf"
 repository = "https://github.com/xiwen-haochi/xlfill2pdf"
 
 [tool.poetry.dependencies]
-python = ">=3.6"
+python = ">=3.8,<4.0"
 qrcode = ">=7.0.0"
-reportlab = ">=3.6.8"
+reportlab = ">=4.2.5"
 openpyxl = ">=3.0.9"
+requests = ">=2.22.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=6.0.0"

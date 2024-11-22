@@ -1,9 +1,8 @@
 import os
 import io
-from pathlib import Path
 import tempfile
-from urllib.request import urlopen, quote
-from typing import List, Optional, Union
+
+from typing import Optional
 
 import qrcode
 import openpyxl
@@ -17,6 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+import requests
 
 from .font import FontManager
 from .qrcode import QRCodeGenerator
@@ -46,7 +46,7 @@ class ExcelProcessor:
         qrcode_suffix: str = ".qrcode",
         image_suffix: str = ".png",
         info_qrcode_suffix: str = ".info_qrcode",
-        default_value: Optional[str] = None,
+        default_value: str = "",
         use_default_image_handlers: bool = True,
         use_default_qrcode_handlers: bool = True,
         use_default_info_qrcode_handlers: bool = True,
@@ -180,7 +180,7 @@ class ExcelProcessor:
         try:
             if path.startswith("http"):
                 # 处理 URL / Handle URL
-                img_data = urlopen(path).read()
+                img_data = requests.get(path).content
                 return PILImage.open(io.BytesIO(img_data))
             else:
                 # 处理本地文件路径 / Handle local file path
@@ -346,8 +346,8 @@ class ExcelProcessor:
     def _replace_placeholders(self, excel_path: str, data_dict: dict):
         if excel_path.startswith("http"):
             try:
-                encoded_url = quote(excel_path, safe=":/?=&")
-                bytes_data = urlopen(encoded_url).read()
+                # encoded_url = quote(excel_path, safe=":/?=&")
+                bytes_data = requests.get(excel_path).content
             except Exception as e:
                 raise Exception(f"Download failed: {e}")
             wb = openpyxl.load_workbook(io.BytesIO(bytes_data))
@@ -398,7 +398,15 @@ class ExcelProcessor:
                                 break
                         if flag:
                             flag = False
-                        elif self.default_value is not None:
+                            print(f"Warning:qwe: {cell.value}")
+                        else:
+                            print(f"Warning:q444we: {cell.value}")
+                            cell.value = self.default_value
+                        if (
+                            cell.value
+                            and cell.value.startswith(self.prefix)
+                            and cell.value.endswith(self.suffix)
+                        ):
                             cell.value = self.default_value
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:

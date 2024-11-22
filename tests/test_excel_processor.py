@@ -140,6 +140,7 @@ def handle_qrcode(cell, field_name, data_dict):
 @pytest.fixture
 def test_excel_path():
     return str(Path(__file__).parent / "resources" / "test.xlsx")
+    # return "http://222.71.116.210:39000/big-wo-server/template-file/2024/11/37c368a9-66eb-4383-9ce0-51dfa109887f-工单打印测试模板.xlsx"
 
 
 def test_process_excel_to_pdf(processor, test_excel_path, handle_image):
