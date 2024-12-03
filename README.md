@@ -233,4 +233,8 @@ qrcode_template = {
 
 MIT
 ```
-
+## 致谢
+qrcode
+reportlab
+openpyxl
+requests
