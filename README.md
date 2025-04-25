@@ -110,6 +110,7 @@ QRCodeGenerator 是一个功能强大的二维码生成器类，支持在二维�
 - 支持自定义字体和字体样式
 - 提供多种输出格式（bytes、文件路径、临时文件）
 - 支持上下文管理器（Context Manager）
+- 支持列表布局和自动边框绘制
 
 ## 初始化参数
 
@@ -120,8 +121,9 @@ QRCodeGenerator 是一个功能强大的二维码生成器类，支持在二维�
 - `qr_position`: 二维码在背景中的位置，默认 (20, 40)
 - `default_font_size`: 默认字体大小，默认 12
 - `default_font_color`: 默认字体颜色，默认黑色
-- `output_type`: 输出类型，可选 "path"、"temp"、"bytes"
+- `output_type`: 输出类型，可选 "path"、"temp"、"bytes"、"base64"
 - `output_path`: 输出文件路径（当 output_type 为 "path" 时必需）
+- `border`: 边框设置，可选，支持自定义边框颜色和宽度
 
 ## 核心方法
 
@@ -133,45 +135,65 @@ QRCodeGenerator 是一个功能强大的二维码生成器类，支持在二维�
 - `qr_data`: 二维码数据内容
 - `text_info`: 文字信息配置字典
 
+## 列表布局功能
+
+QRCodeGenerator 支持创建表格式的列表布局，可以自动处理文本换行、边框绘制和垂直居中等功能。
+
+### 列表配置示例
+
 ```python
 from xlfill2pdf import QRCodeGenerator, FontManager
-初始化
+
+# 初始化
 font_manager = FontManager()
 generator = QRCodeGenerator(
-font_manager=font_manager,
-background_size=(400, 200),
-qr_size=(120, 120)
+    font_manager=font_manager,
+    background_size=(600, 400),
+    qr_size=(150, 150),
+    qr_position=(20, 40)
 )
-创建带信息的二维码
-text_info = {
-"title": {
-"text": "产品信息",
-"position": (150, 40),
-"font_size": 32,
-"color": "black"
-},
-"code": {
-"text": "产品编号：A12345",
-"position": (150, 80),
-"font_size": 12
-}
-}
+
+# 创建带表格布局的二维码
+text_info = [
+    {
+        "list": [
+            {"text": "设备名称：测试设备", "font_size": 16, "text_wrap": True},
+            {"text": "设备型号：XYZ-100", "font_size": 16},
+            {"text": "安装时间：2023-05-15", "font_size": 16},
+        ],
+        "start_position": ("30vw", "30vh"),  # 表格起始位置
+        "column": 1,                         # 列数
+        "out_border": True,                  # 显示外边框
+        "inner_border": True,                # 显示内边框
+        "width": "50vw",                     # 表格宽度
+        # "height": "50vh",                  # 可选：表格高度，默认为100vh
+    }
+]
+
 result = generator.create_info_qrcode(
-qr_data="https://example.com",
-text_info=text_info
+    qr_data="https://example.com",
+    text_info=text_info
 )
-
-'''
-1. 使用 "path" 输出类型时必须提供 output_path
-2. 使用 "temp" 输出类型时，文件会在对象销毁时自动清理
-3. 建议使用上下文管理器来确保临时文件的正确清理
-4. 文字信息字典中的 "text" 和 "position" 是必需的键
-5. 确保使用的字体文件存在且可访问
-'''
-
-
-
 ```
+
+### 列表配置参数
+
+- `list`: 列表项数组，每个项目包含文本内容和样式
+- `start_position`: 列表起始位置，支持 vw/vh 单位
+- `column`: 列数，默认为 1
+- `out_border`: 是否显示外边框，可以是布尔值或 (颜色, 宽度) 元组
+- `inner_border`: 是否显示内边框，可以是布尔值或 (颜色, 宽度) 元组
+- `width`: 列表宽度，支持 vw/vh/rem 单位
+- `height`: 列表高度，支持 vw/vh/rem 单位，默认为 100vh
+- `margin`: 列表外边距，默认为 0.5rem
+
+### 列表项配置参数
+
+- `text`: 文本内容
+- `font_size`: 字体大小，支持 rem/vw/vh 单位
+- `color`: 字体颜色，可以是颜色名称或 RGB 元组
+- `text_wrap`: 是否自动换行，默认为 False
+- `margin`: 项目内边距，默认继承列表的 margin 设置
 
 ## example
 ![alt text](docs/before.png)
