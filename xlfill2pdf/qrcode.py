@@ -179,15 +179,7 @@ class QRCodeGenerator:
                 raise ValueError(f"无效的尺寸值 (Invalid size value): {value}")
 
     def _parse_border(self, border: Optional[Union[dict, bool]]) -> dict:
-        """解析边框参数
-        Parse border parameters
-        
-        Args:
-            border: 边框设置字典，可选
-        
-        Returns:
-            解析后的边框设置字典 / Parsed border settings dictionary
-        """
+        """解析边框参数"""
         default_border = {
             "top": 20,
             "left": 20,
@@ -197,19 +189,24 @@ class QRCodeGenerator:
             "size": 1
         }
         
-        if not (border and isinstance(border, dict)):
+        # 修改这里的逻辑
+        if border is None:
+            return None  # 返回None表示不绘制边框
+        elif border is False:
+            return None  # 返回None表示不绘制边框
+        elif border is True:
             return default_border
-        result = default_border.copy()
-        
-        # 更新用户提供的边框设置
-        for key, value in border.items():
-            if key in ["top", "left", "right", "bottom", "size"]:
-                # 处理可能的rem/vw/vh单位
-                result[key] = self._parse_single_value(value)
-            elif key == "color":
-                result[key] = value
-        
-        return result
+        elif isinstance(border, dict):
+            result = default_border.copy()
+            # 更新用户提供的边框设置
+            for key, value in border.items():
+                if key in ["top", "left", "right", "bottom", "size"]:
+                    result[key] = self._parse_single_value(value)
+                elif key == "color":
+                    result[key] = value
+            return result
+        else:
+            return None  # 其他情况也不绘制边框
 
     def create_info_qrcode(
         self,
@@ -398,9 +395,9 @@ class QRCodeGenerator:
         # 解析列数
         column_count = info.get("column", 1)
         
-        # 解析边框设置
-        out_border = info.get("out_border", ("black", "0.05rem"))
-        inner_border = info.get("inner_border", ("black", "0.05rem"))
+        # 解析边框设置，默认为False表示不显示边框
+        out_border = info.get("out_border", False)
+        inner_border = info.get("inner_border", False)
         
         # 计算每列宽度
         column_width = (width - margin[1] - margin[3]) / column_count
@@ -469,31 +466,50 @@ class QRCodeGenerator:
             text = item["text"]
             color = item.get("color", self.default_font_color)
             text_wrap = item.get("text_wrap", False)
-            
+            text_align = item.get("text_align", "start")  # 默认左对齐
+
             font = ImageFont.truetype(self.font_path, font_size)
-            
-            # 计算文本位置，垂直居中
+
+            # 计算文本位置，考虑对齐方式
             text_x = item_x + item_margin[3]
-            
-            # 垂直居中计算
-            item_height = item_heights[i]
-            cell_height = row_height + item_margin[0] + item_margin[2]
-            text_y = item_y + item_margin[0] + (cell_height - item_margin[0] - item_margin[2] - item_height) / 2
-            
-            # 绘制文本
+            available_width = column_width - item_margin[1] - item_margin[3]
+
             if text_wrap:
-                # 计算可用宽度
-                available_width = column_width - item_margin[1] - item_margin[3]
-                
-                # 分割文本并绘制
+                # 处理换行文本的对齐
                 lines = self._wrap_text(text, font, available_width)
-                y = text_y
+                # 垂直居中计算
+                item_height = item_heights[i]
+                cell_height = row_height + item_margin[0] + item_margin[2]
+                text_y = item_y + item_margin[0] + (cell_height - item_margin[0] - item_margin[2] - item_height) / 2
+                
                 for line in lines:
-                    draw.text((text_x, y), line, font=font, fill=color)
-                    # 根据字体高度计算下一行的y坐标
-                    line_height = font.getbbox(line)[3] + 2  # 添加一点行间距
-                    y += line_height
+                    # 根据对齐方式计算x坐标
+                    if text_align == "center":
+                        line_width = font.getbbox(line)[2]
+                        line_x = text_x + (available_width - line_width) / 2
+                    elif text_align == "end":
+                        line_width = font.getbbox(line)[2]
+                        line_x = text_x + available_width - line_width
+                    else:  # "start"或其他值
+                        line_x = text_x
+                    
+                    draw.text((line_x, text_y), line, font=font, fill=color)
+                    text_y += font.getbbox(line)[3] + 2  # 添加行间距
             else:
+                # 处理单行文本的对齐
+                text_width = font.getbbox(text)[2]
+                
+                if text_align == "center":
+                    text_x = text_x + (available_width - text_width) / 2
+                elif text_align == "end":
+                    text_x = text_x + available_width - text_width
+                # 对于"start"或其他值，保持原始text_x
+                
+                # 垂直居中计算
+                item_height = item_heights[i]
+                cell_height = row_height + item_margin[0] + item_margin[2]
+                text_y = item_y + item_margin[0] + (cell_height - item_margin[0] - item_margin[2] - item_height) / 2
+                
                 draw.text((text_x, text_y), text, font=font, fill=color)
             
             # 记录当前行的底部位置
